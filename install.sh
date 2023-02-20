@@ -43,6 +43,11 @@ echo -e "${CYAN}"
 echo -e "${YELLOW}Creation fichier LOGS"
 sudo mkdir Logs
 
+# # Création du raccourcie
+# echo -e "${YELLOW}Ajout d'un raccourcie"
+# echo "alias getlog1='/home/$SUDO_USER/Documents/Getlog/script.sh'" >> ~/.bashrc
+# chmod +x script.sh
+
 # Pause pour permettre à l'utilisateur d'appuyer sur une touche 
 read -n 1 -s -r -p "Appuyez sur n'importe quelle touche pour continuer"
 clear
