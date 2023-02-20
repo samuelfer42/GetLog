@@ -16,12 +16,12 @@ MNT_DIR="/home/$SUDO_USER/mnt-ff7-ios"
 
 # Fonction pour demander à l'utilisateur le nom du vol
 user_input_flghtname_comment() {
-    echo -e "${YELLOW}NOM DU VOL${WHITE}"
+echo -e "${YELLOW}NOM DU VOL${WHITE}"
     read varNameFlight
     if [[ -n "$varNameFlight" ]]; then
-        varNameFlight=$varNameFlight
+        varNameFlight="Logs/$varNameFlight"
     else
-        varNameFlight=$DATE_NAME
+        varNameFlight="Logs/$DATE_NAME"
         echo -e "${RED}AUCUN NOM, PAR DEFAUT : $varNameFlight"
     fi
     mkdir $varNameFlight
@@ -200,6 +200,8 @@ delete() {
     echo -e "${CYAN}1 => logs DRONE"
     echo -e "${CYAN}2 => logs MPP"
     echo -e "${CYAN}3 => logs FF7${YELLOW}"
+    echo -e "${CYAN}4 => logs sauvegardé sur le pc"
+
     read r_choice
     if [ $r_choice == "1" ]; then
         clear
@@ -212,6 +214,10 @@ delete() {
     elif [ $r_choice == "3" ]; then
         clear
         delete_log_FF7
+
+    elif [ $r_choice == "4" ]; then
+        clear
+        delete_log_pc
     else
         clear
         echo -e "${RED}Option non valide. Veuillez réessayer."
@@ -220,18 +226,28 @@ delete() {
 
 # Fonction pour supprimer les logs du drone
 delete_log_drone() {
-    echo -e "${RED}Supression des logs du drone"
+    echo -e "${YELLOW}Supression des logs du drone${RED}"
+     read -n 1 -s -r -p "Appuyez sur n'importe quelle touche pour continuer"
     adb shell rm -rf /mnt/user-internal/FSR/*
     adb shell rm -rf /mnt/user-internal/FDR-TLM/*
     adb shell rm -rf /mnt/logs/FDR/*
     echo -e "${RED}Supression terminée"
 }
 
+delete_log_pc(){
+    echo -e "${YELLOW}Supression des logs du PC${RED}"
+    read -n 1 -s -r -p "Appuyez sur n'importe quelle touche pour continuer"
+    sudo rm -rf Logs/*
+    echo -e "${RED}Supression effectuer"
+}
+
+
 # Fonction pour supprimer les logs du MPP
 delete_log_mpp() {
+    echo -e "${YELLOW}Supression des logs du MPP${RED}"
+    read -n 1 -s -r -p "Appuyez sur n'importe quelle touche pour continuer"
     echo -e "${YELLOW}Connexion au MPP${NC}"
     adb connect 192.168.53.1:9050
-    echo -e "${RED}Supression des logs du MPP"
     adb shell rm -rf /log/*
     echo -e "${RED}Supression terminée"
 }
@@ -239,7 +255,8 @@ delete_log_mpp() {
 # Fonction pour supprimer les logs de FF7
 delete_log_FF7() {
     echo -e "${YELLOW}Création du point de montage de l'iPhone${WHITE}"
-    echo -e "${RED}Supression des logs de FF7"
+    echo -e "${YELLOW}Supression des logs de FF7 ${RED}"
+    read -n 1 -s -r -p "Appuyez sur n'importe quelle touche pour continuer"
     ./ifuse/native-wrapper.sh ifuse "$MNT_DIR" --documents com.parrot.freeflight7.inhouse
     rm -rf /home/$SUDO_USER/mnt-ff7-ios/log/
     fusermount -uz "$MNT_DIR"

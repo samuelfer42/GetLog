@@ -39,8 +39,9 @@ sudo chmod 777 $MNT_DIR
 sudo chmod 777 install.sh
 echo -e "${CYAN}"
 
-# Ajout d'un raccourcie
-echo -e "${CYAN}"
+# Création Fichier LOGS
+echo -e "${YELLOW}Creation fichier LOGS"
+sudo mkdir Logs
 
 # Pause pour permettre à l'utilisateur d'appuyer sur une touche 
 read -n 1 -s -r -p "Appuyez sur n'importe quelle touche pour continuer"
