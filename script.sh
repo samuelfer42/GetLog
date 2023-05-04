@@ -37,7 +37,7 @@ write_comment_in_file() {
   gprop | grep -e "factory.serial" -e "smartbattery.serial" -e "parrot.build.version"
   " >>$varNameFlight/ReadMe.txt
     if [ ${#varCommentFlight} != 0 ]; then
-        echo -e $varCommentFlight >>$varNameFlight/ReadMe.txt
+        echo -e "\nCommentaire du vol : $varCommentFlight \n">>$varNameFlight/ReadMe.txt
     fi
 }
 
@@ -45,17 +45,20 @@ write_comment_in_file() {
 making_tree_directory() {
     mkdir $varNameFlight/Media
     mkdir $varNameFlight/Drone
+    mkdir $varNameFlight/Drone/FSR
     mkdir $varNameFlight/Drone/TLM
     mkdir $varNameFlight/MPP
     mkdir $varNameFlight/FF7
+    chmod 777 $varNameFlight/*
 }
 
 # Fonction pour récupérer les logs du drone
 log_drone() {
     echo -e "${YELLOW}Choisissez le mode d'exécution : "
     echo -e "${CYAN}1) Récupèration du dernier bootID"
-    echo -e "${CYAN}2) Récupèration du de tout les logs du drone"
+    echo -e "${CYAN}2) Récupèration de tout les logs du drone"
     echo -e "${CYAN}3) Récupèration de toutes les données présents dans la carte SD"
+
     read mode_choice
     if [ "$mode_choice" = "1" ]; then
         start_normal
@@ -78,7 +81,7 @@ add_log() {
     read mode_choice
     if [ "$mode_choice" = "1" ]; then
         clear
-        log_drone
+        ask_reboot_drone
     elif [ "$mode_choice" = "2" ]; then
         clear
         log_mpp
@@ -95,16 +98,55 @@ add_log() {
 start_normal() {
     clear
     check_device_connected
+    check_available_space_on_computer
     write_comment_in_file
     adb_pulling_files_without_specific_bootid
+    adb kill-server
 }
 
 # Fonction pour récupérer tout les logs du drone
 all_log_drone() {
     clear
     check_device_connected
+    check_available_space_on_computer
     write_comment_in_file
     adb_pulling_all_files
+    adb kill-server
+}
+
+# Reboot le drone
+reboot_drone(){
+    check_device_connected
+    adb reboot
+    echo -e "${YELLOW} Reboot en cours"
+    
+    # Attendre que le drone redémarre et soit détecté
+    until $(adb get-state &> /dev/null); do
+        sleep 1
+    done
+    
+    check_device_connected
+    echo -e "${GREEN}Le drone a été redémarré avec succès"
+}
+
+# Demande si il faut reboot le drone
+ask_reboot_drone(){ 
+    echo -e "${YELLOW}Voulez vous reboot le drone ?: "
+    echo -e "${CYAN} 1) Non, Manuel Reboot"
+    echo -e "${CYAN} 2) Oui, Reboot"
+    read mode_choice
+    if [ "$mode_choice" = "2" ]; then
+        clear
+        reboot_drone
+        log_drone
+    elif [ "$mode_choice" = "1" ]; then
+        clear
+    echo -e "${RED} NE PAS OUBLIER DE REBOOT LE DRONE POUR SAVE LE LOG${NC}"
+        log_drone
+    else
+        clear
+        echo -e "${RED}Option non valide. Veuillez réessayer."
+    fi
 }
 
 # Fonction pour récupérer tous les logs de la carte SD
@@ -117,7 +159,7 @@ add_all_sd() {
 log_ff7() {
     echo -e "${YELLOW}Choisissez le mode de récupération de log de FF7 : "
     echo -e "${CYAN}1) Récupèration du dernier log"
-    echo -e "${CYAN}2) Récupèration du de tout les logs de FF7${YELLOW}"
+    echo -e "${CYAN}2) Récupèration de tout les logs de FF7${YELLOW}"
     read mode_choice
     if [ "$mode_choice" = "1" ]; then
         start_normal_ff7
@@ -183,6 +225,7 @@ start_normal_mpp() {
         echo "MPP: /log/$line" >>$varNameFlight/ReadMe.txt
     done
 }
+
 
 all_log_mpp() {
     echo -e "${YELLOW}Connexion au MPP${NC}"
@@ -280,7 +323,7 @@ check_device_connected() {
 # Fonction pour verifier la place disponible sur le pc
 check_available_space_on_computer() {
     space_available=$(df --output=avail -h "$PWD" | sed '1d;s/[^0-9]//g')
-    limite=25
+    limite=5
     if [ $space_available -lt $limite ]; then
         echo -e "${RED}$space_available Go mémoire sur votre ordinateur, libérer de la place puis recommencer."
         read -s -n 1 key
@@ -293,48 +336,61 @@ check_available_space_on_computer() {
 }
 
 # Fonction pour récupérer le dernier fichier modifié
-get_latest_file() {
+get_second_latest_file() {
     dir=$1
-    latest_file=$(adb shell ls -t "$dir" | head -n 1 | tr -d '\r')
-    echo "$dir/$latest_file"
+    second_latest_file=$(adb shell ls -t "$dir" | sed -n '2p' | tr -d '\r')
+    echo "$dir/$second_latest_file"
 }
-
 # Fonction pour récupérer le dernier BOOTID
 adb_pulling_files_without_specific_bootid() {
-    echo -e "${CYAN}Récupération FSR${YELLOW}"
-    latest_file=$(get_latest_file "/mnt/user-internal/FSR/")
-    adb pull "$latest_file" $varNameFlight/Media
-    echo "FSR: $latest_file" >>$varNameFlight/ReadMe.txt
-
-    echo -e "${CYAN}Récupération FDR-TLM${YELLOW}"
-    latest_file=$(get_latest_file "/mnt/user-internal/FDR-TLM/")
-    adb pull "$latest_file" $varNameFlight/Drone/TLM
-    echo "TLM: $latest_file" >>$varNameFlight/ReadMe.txt
 
     echo -e "${CYAN}Récupération LOGS${YELLOW}"
-    latest_file=$(get_latest_file "/mnt/logs/FDR/")
-    adb pull "$latest_file" $varNameFlight/Drone
-    echo "LOG: $latest_file" >>$varNameFlight/ReadMe.txt
+    latest_file=$(get_second_latest_file "/mnt/logs/FDR/")
+    bootid=$(echo "$latest_file" | cut -d'-' -f3)
+    echo "BOOTID: $bootid" >>$varNameFlight/ReadMe.txt
+    adb shell "find /mnt/logs/FDR/ -name \"log-*-$bootid-*\"" | while read -r file; do
+    adb pull "$file" "$varNameFlight/Drone"
+    echo "LOG: $file" >>$varNameFlight/ReadMe.txt
+    done
+
+    echo -e "${CYAN}Récupération FSR${YELLOW}"
+    adb shell "find /mnt/user-internal/FSR/ -name \"log-*-$bootid-*\"" | while read -r file; do
+    adb pull "$file" "$varNameFlight/Drone/FSR"
+    echo "FSR: $file" >>$varNameFlight/ReadMe.txt
+    done
+
+    echo -e "${CYAN}Récupération FDR-TLM${YELLOW}"
+    adb shell "find /mnt/user-internal/FDR-TLM/ -name \"log-*-$bootid-*\"" | while read -r file; do
+    adb pull "$file" "$varNameFlight//Drone/TLM"
+    echo "TLM: $file" >>$varNameFlight/ReadMe.txt
+    done
+}
+
+#Fonction pour récupérer log DRONE et MPP a la suite 
+add_log_drone_mpp(){
+    create_file
+    all_log_mpp
+    adb_pulling_all_files
 }
 
 # Fonction pour récupère tout les logs
 adb_pulling_all_files() {
     echo -e "${CYAN}Récupération FSR${YELLOW}"
     adb shell ls /mnt/user-internal/FSR/ | tr -d '\015' | while read line; do
-        adb pull "/mnt/user-internal/FSR/$line" "$varNameFlight/Media"
-        echo "FSR: /mnt/user-internal/FSR/$line" >>"$varNameFlight/ReadMe.txt"
+    adb pull "/mnt/user-internal/FSR/$line" "$varNameFlight/Drone/FSR"
+    echo "FSR: /mnt/user-internal/FSR/$line" >>"$varNameFlight/ReadMe.txt"
     done
 
     echo -e "${CYAN}Récupération FDR-TLM${YELLOW}"
     adb shell ls /mnt/user-internal/FDR-TLM/ | tr -d '\015' | while read line; do
-        adb pull "/mnt/user-internal/FDR-TLM/$line" "$varNameFlight/Drone/TLM"
-        echo "TLM: /mnt/user-internal/FDR-TLM/$line" >>"$varNameFlight/ReadMe.txt"
+    adb pull "/mnt/user-internal/FDR-TLM/$line" "$varNameFlight/Drone/TLM"
+    echo "TLM: /mnt/user-internal/FDR-TLM/$line" >>"$varNameFlight/ReadMe.txt"
     done
 
     echo -e "${CYAN}Récupération LOGS${YELLOW}"
     adb shell ls /mnt/logs/FDR/ | tr -d '\015' | while read line; do
-        adb pull "/mnt/logs/FDR/$line" "$varNameFlight/Drone"
-        echo "LOG: /mnt/logs/FDR/$line" >>"$varNameFlight/ReadMe.txt"
+    adb pull "/mnt/logs/FDR/$line" "$varNameFlight/Drone"
+    echo "LOG: /mnt/logs/FDR/$line" >>"$varNameFlight/ReadMe.txt"
     done
 }
 
@@ -343,7 +399,8 @@ while true; do
     echo -e "${YELLOW}Que voulez-vous faire : "
     echo -e "${CYAN}1 => Pull les logs"
     echo -e "${CYAN}2 => Supression des données${YELLOW}"
-    echo -e "${CYAN}3 => Quitter${YELLOW}"
+    echo -e "${CYAN}3 => ${RED}[En-cours]${CYAN}Récupérer tout les logs Drone et MPP et supprimer les données${RED}[En-cours]${CYAN}"
+    echo -e "${CYAN}4 => Quitter${YELLOW}"
     read choice
     if [ $choice == "1" ]; then
         clear
@@ -355,6 +412,10 @@ while true; do
         clear
         delete
     elif [ $choice == "3" ]; then
+        clear
+        add_log_drone_mpp
+       
+    elif [ $choice == "4" ]; then
         clear
         exit
     else
