@@ -64,6 +64,3 @@ echo -e "\n"
 # Pause pour permettre à l'utilisateur d'appuyer sur une touche 
 read -n 1 -s -r -p "Appuyez sur n'importe quelle touche pour ouvrir Gencert"
 gencert 
-
-
-
