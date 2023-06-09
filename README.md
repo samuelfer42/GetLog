@@ -12,4 +12,4 @@ Les fichiers récupérés sont stockés dans le répertoire spécifié et un fic
 Le script propose également de supprimer les fichiers de logs de plusieurs sources de stockage, notamment ceux stockés sur le drone, le MPP et l'iPhone.
 
 #
-N'hésitez pas à utiliser ce script pour simplifier votre processus de récupération et suppression de logs de vol pour votre drone Parrot !
+N'hésitez pas à utiliser ce script pour simplifier votre processus de récupération et suppression de logs de vol pour votre drone Parrot en mode Dev !
